@@ -15,7 +15,7 @@ h2{display:block; font-size:1.5em; font-weight:bold;}
 .left{float:left;}
 .right{float:right;}
 .clear{clear:both;}
-.lsu-col-space{margin:auto 0.5em;}
-.lsu-btn{color: #FFFFFF;background: #57A000;margin:0px 5px;padding: 4px 6px;border-radius: 4px;cursor: pointer;}
-.lsu-lg-input{width:380px;}
-.lsu-sm-input{width:70px;}
+.hy-col-space{margin:auto 0.5em;}
+.hy-btn{color: #FFFFFF;background: #57A000;margin:0px 5px;padding: 4px 6px;border-radius: 4px;cursor: pointer;}
+.hy-lg-input{width:380px;}
+.hy-sm-input{width:70px;}

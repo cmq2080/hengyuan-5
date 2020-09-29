@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/hengyuan.css">
+    <style>
+        .hy-list-form {
+            overflow: hidden;
+        }
+
+        .hy-list-form .hy-form-item {
+            float: left;
+            margin: 1em;
+        }
+
+        .hy-list {
+            overflow: hidden;
+        }
+
+        .hy-list .hy-list-table {
+            width: 100%;
+            text-align: center;
+        }
+
+        .hy-list-table thead {
+            background: #E2E2E2;
+        }
+
+        .hy-list-table thead tr th {
+            padding: 10px;
+        }
+
+        .hy-list-table tbody tr:nth-child(even) {
+            background: #E2E2E2;
+        }
+
+        .hy-list-table tbody tr td {
+            padding: 10px;
+        }
+
+        .hy-list-table td a {
+            color: #57A000;
+            font-size: 14px;
+            margin: 0 0.3em;
+        }
+
+        .hy-pagination {
+            overflow: hidden;
+            margin: 20px 0 5px 0;
+        }
+
+        .hy-pagination li {
+            display: inline-block;
+            border: 1px #57A000 solid;
+            margin-right: 10px;
+            text-align: center;
+        }
+
+        .hy-pagination li * {
+            display: block;
+            margin: 0 auto;
+            font-size: 16px;
+            padding: 2px 6.5px;
+        }
+
+        .hy-pagination li a:hover {
+            color: #FFFFFF;
+            background: #57A000;
+            text-decoration: none;
+        }
+
+        .hy-pagination .active a {
+            background: #57A000;
+            color: #FFFFFF;
+        }
+
+        .hy-pagination .disabled {
+            border-color: #999999;
+        }
+    </style>
+
+    <title>列表</title>
+
+    <script type="text/javascript" src="../jquery-2.1.4.min.js"></script>
+    <!-- <script type="text/javascript" src="../hengyuan.all.js"></script> -->
+    <script type="text/javascript">
+        $(function () {
+            $(".hy-list").on("click", ".hy-list-form .hy-btn-submit", function () {
+                var formData = Hy.list.getFormData();
+                Hy.list.renderTable();
+            }).on("click", ".hy-pagination li a", function () {
+                if ($(this).parent().hasClass("disabled") || $(this).parent().hasClass("active")) {
+                    return;
+                }
+                Hy.list.page = $(this).attr("data-page");
+                $(".hy-btn-submit").trigger("click");
+            });
+
+            var Hy = {};
+            Hy.list = {
+                getFormData: function () {
+                    var formData = $(".hy-list .hy-list-form form").serializeArray();
+                    // console.log(formData);
+                    // 再加上分页预传值
+                    formData.push({ name: "page", value: this.page });
+                    formData.push({ name: "limit", value: this.limit });
+                    return formData;
+                },
+                getDataUrl: function () {
+                    var url = $(".hy-list-table").eq(0).attr("data-url");
+                    return url;
+                },
+                renderTable: function () {
+                    // this.getFormData();
+                    var fields = $(".hy-list-table thead th");
+                    var rowTemp = [];
+                    for (var i = 0; i < fields.length; i++) {
+                        var value = $(fields[i]).attr("data-field");
+                        var rowTempItem = { "type": "value" }; // 模板类型：key、value、option，值：value、value、渲染的方法名
+                        if (value) {
+                            if (i === 0) { // 首列必为键
+                                rowTempItem.type = "key";
+                            }
+                            rowTempItem.value = value;
+                        } else if ($(fields[i]).attr("data-option")) {
+                            rowTempItem.type = "option";
+                            var option = $(fields[i]).attr("data-option");
+                            rowTempItem.value = option;
+                        }
+                        rowTemp[i] = rowTempItem;
+                    }//console.log(rowTemp);
+                    var that = this; //console.log(this.getFormData()); return;
+
+                    $.ajax({
+                        type: "POST",
+                        url: that.getDataUrl(),
+                        // url:"data.json",
+                        dataType: "json",
+                        async: false,
+                        data: that.getFormData(),
+                        success: function (res) {
+                            if (res.stat !== 0) {
+                                console.log(res.msg);
+                                return;
+                            }
+                            var data = res.data;
+                            var rows = data.rows;
+                            $(".hy-list-table tbody").eq(0).empty(); // 先清空列表
+                            for (var i = 0; i < rows.length; i++) {
+                                var row = [];
+                                for (var index in rows[i]) {
+                                    for (var j = 0; j < rowTemp.length; j++) {
+                                        if ((rowTemp[j].type !== "option") && (rowTemp[j].value == index)) {
+                                            row[j] = rows[i][index];
+                                            break;
+                                        }
+                                    }
+                                }
+                                that.renderRow(row, rowTemp);
+                            }
+                            that.renderPage(300, 12, 15);
+                        },
+                        error: function (e) { }
+                    });
+                },
+                renderRow: function (row, template) {
+                    var html = "<tr>";
+                    var temp = "";//console.log(row);
+                    for (var i = 0; i < template.length; i++) {
+                        if (template[i].type === "key") {
+                            temp = '<td><input type="checkbox" class="hy-key" name="id[]" value="' + row[i] + '"></td>';
+                        } else if (template[i].type === "value") {
+                            temp = "<td>" + row[i] + "</td>";
+                        } else if (template[i].type === "option") {
+                            temp = "<td>" + this.renderOption(template[i].value, row) + "</td>";
+                        }
+                        html += temp;
+                    }
+                    html += "</tr>";
+                    $(".hy-list-table tbody").eq(0).append(html);
+                },
+                renderOption: function (option, row) {//console.log(option);
+                    var f = eval(option);// 多个按钮可以拆
+                    return f(row);
+                },
+                renderPage: function (total, page, limit) {
+                    var startPage = 1;
+                    var endPage = parseInt((total - 1) / limit) + 1;
+                    var lastPage = ((page - 1) > startPage) ? (page - 1) : startPage;
+                    var nextPage = ((page + 1) < endPage) ? (page + 1) : endPage;
+                    var minPage = ((page - 3) > startPage) ? (page - 3) : startPage;
+                    var maxPage = ((page + 3) < endPage) ? (page + 3) : endPage;
+                    // 先清空
+                    $(".hy-list-table").eq(0).siblings('.hy-pagination').remove();
+                    // 再插入
+                    var html = '<ul class="hy-pagination">'; // 封头
+                    html += '<li class="' + this.getPaginationClass(2, page, startPage) + '"><a href="javascript:void(0)" data-page="' + startPage + '">&laquo;</a></li>';
+                    html += '<li class="' + this.getPaginationClass(2, page, lastPage) + '"><a href="javascript:void(0)" data-page="' + lastPage + '">&lt;</a></li>';
+                    for (var i = minPage; i <= maxPage; i++) {
+                        html += '<li class="' + this.getPaginationClass(1, page, i) + '"><a href="javascript:void(0)" data-page="' + i + '">' + i + '</a></li>';
+                    }
+                    html += '<li class="' + this.getPaginationClass(2, page, nextPage) + '"><a href="javascript:void(0)" data-page="' + nextPage + '">&gt;</a></li>';
+                    html += '<li class="' + this.getPaginationClass(2, page, endPage) + '"><a href="javascript:void(0)" data-page="' + endPage + '">&raquo;</a></li>';
+                    html += '</ul>'; // 封尾
+                    // console.log(html);
+                    $(".hy-list-table").eq(0).after(html);
+                },
+                page: 1,
+                limit: 15,
+                getPaginationClass: function (type, currentPage, targetPage) {
+                    // type：类型，1-普通页；2-前/后一页,首/末页
+                    // currentPage：当前页
+                    // targetPage：链接目标页
+                    if (type === 1) {
+                        if (currentPage === targetPage) {
+                            return 'active';
+                        }
+                    } else if (type === 2) {
+                        if (currentPage === targetPage) {
+                            return 'disabled';
+                        }
+                    }
+                    return '';
+                }
+            };
+
+            Hy.list.renderTable();
+            Hy.list.renderPage(300, 10, 15);
+        });
+
+        function myOption(row) {
+            return '<a href="">修改</a><a href="">删除</a>';
+        }
+    </script>
+</head>
+
+<body>
+    <div class="hy-list">
+        <div class="hy-list-form">
+            <form action="">
+                <div class="hy-form-item">
+                    <label>用户名</label>
+                    <input type="text" class="hy-input" name="username" value="admin">
+                </div>
+                <div class="hy-form-item">
+                    <label>性别</label>
+                    <select name="sex" id="">
+                        <option value="">不限</option>
+                        <option value="">男</option>
+                        <option value="">女</option>
+                    </select>
+                </div>
+                <div class="hy-form-item">
+                    <label>联系电话</label>
+                    <input type="text" class="hy-input" name="phone">
+                </div>
+                <div class="hy-form-item">
+                    <button type="button" class="hy-btn hy-btn-submit">查询</button>
+                </div>
+            </form>
+        </div>
+        <table class="hy-list-table" cellspacing="0" data-url="http://127.0.0.1/app/dev1/20200730.php">
+            <thead>
+                <tr>
+                    <th data-field="id"><input type="checkbox" class="hy-key" /></th>
+                    <th data-field="username">用户名</th>
+                    <th data-field="password">密码</th>
+                    <th data-field="real_name">真实姓名</th>
+                    <th data-field="create_time">创建时间</th>
+                    <th data-field="login_time">登录时间</th>
+                    <th data-field="update_time">修改时间</th>
+                    <th data-field="delete_time">删除时间</th>
+                    <th data-option="myOption">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- <tr>
+                    <td><input type="checkbox" class="hy-key"></td>
+                    <td>1</td>
+                    <td>2</td>
+                    <td>3</td>
+                    <td>4</td>
+                    <td>5</td>
+                    <td>6</td>
+                    <td>7</td>
+                    <td><a href="">修改</a><a href="">删除</a></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox" class="hy-key"></td>
+                    <td>A</td>
+                    <td>B</td>
+                    <td>C</td>
+                    <td>D</td>
+                    <td>E</td>
+                    <td>F</td>
+                    <td>G</td>
+                    <td><a href="">修改</a><a href="">删除</a></td>
+                </tr> -->
+            </tbody>
+        </table>
+        <div class="paginate">
+
+        </div>
+        <!-- 3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br>
+        3<br> -->
+    </div>
+</body>
+
+</html>
